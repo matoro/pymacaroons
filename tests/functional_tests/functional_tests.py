@@ -4,11 +4,18 @@ import json
 from mock import *
 from nose.tools import *
 
-from libnacl import crypto_box_NONCEBYTES
+import nacl.bindings
+
 from pymacaroons import Macaroon, Verifier
 from pymacaroons.serializers import *
 from pymacaroons.exceptions import *
 from pymacaroons.utils import *
+
+
+ZERO_NONCE = truncate_or_pad(
+    b'\0', size=nacl.bindings.crypto_secretbox_NONCEBYTES)
+ONE_NONCE = truncate_or_pad(
+    b'\1', size=nacl.bindings.crypto_secretbox_NONCEBYTES)
 
 
 class TestMacaroon(object):
@@ -178,13 +185,7 @@ key", "signature": "197bac7a044af33332865b9266e26d493bdd668a660e44d88ce1a998c2\
         )
         assert_true(verified)
 
-    @patch('libnacl.secret.libnacl.utils.rand_nonce')
-    def test_third_party_caveat(self, rand_nonce):
-        # use a fixed nonce to ensure the same signature
-        rand_nonce.return_value = truncate_or_pad(
-            b'\0',
-            size=crypto_box_NONCEBYTES
-        )
+    def test_third_party_caveat(self):
         m = Macaroon(
             location='http://mybank/',
             identifier='we used our other secret key',
@@ -194,7 +195,11 @@ never use the same secret twice'
         m.add_first_party_caveat('account = 3735928559')
         caveat_key = '4; guaranteed random by a fair toss of the dice'
         identifier = 'this was how we remind auth of key/pred'
-        m.add_third_party_caveat('http://auth.mybank/', caveat_key, identifier)
+        m.add_third_party_caveat(
+            'http://auth.mybank/',
+            caveat_key,
+            identifier,
+            nonce=ZERO_NONCE)
         assert_equal(
             m.signature,
             'd27db2fd1f22760e4c3dae8137e2d8fc1df6c0741c18aed4b97256bf78d1f55c'
@@ -219,13 +224,24 @@ never use the same secret twice'
             n.signature
         )
 
-    @patch('libnacl.secret.libnacl.utils.rand_nonce')
-    def test_prepare_for_request(self, rand_nonce):
+    def test_prepare_for_request(self):
         # use a fixed nonce to ensure the same signature
-        rand_nonce.return_value = truncate_or_pad(
-            b'\0',
-            size=crypto_box_NONCEBYTES
+        signature = self.generate_macaroon(ZERO_NONCE)
+        assert_equal(
+            signature,
+            '2eb01d0dd2b4475330739140188648cf25dda0425ea9f661f1574ca0a9eac54e'
         )
+
+    @patch('nacl.utils.random')
+    def test_defaults_to_random_nonce(self, rand_nonce):
+        rand_nonce.return_value = ONE_NONCE
+        signature = self.generate_macaroon(None)
+        assert_equal(
+            signature,
+            '97b6b4195737d69388ec20d9bcde5ae631ccab430897a40d9473486110476e70'
+        )
+
+    def generate_macaroon(self, nonce):
         m = Macaroon(
             location='http://mybank/',
             identifier='we used our other secret key',
@@ -238,7 +254,8 @@ never use the same secret twice'
         m.add_third_party_caveat(
             'http://auth.mybank/',
             caveat_key,
-            identifier
+            identifier,
+            nonce=nonce,
         )
 
         discharge = Macaroon(
@@ -248,10 +265,7 @@ never use the same secret twice'
         )
         discharge.add_first_party_caveat('time < 2015-01-01T00:00')
         protected = m.prepare_for_request(discharge)
-        assert_equal(
-            protected.signature,
-            '2eb01d0dd2b4475330739140188648cf25dda0425ea9f661f1574ca0a9eac54e'
-        )
+        return protected.signature
 
     def test_verify_third_party_caveats(self):
         m = Macaroon(

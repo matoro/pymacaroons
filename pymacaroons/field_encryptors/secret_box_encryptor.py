@@ -1,6 +1,8 @@
 from base64 import standard_b64encode, standard_b64decode
 
-from libnacl.secret import SecretBox
+import nacl.bindings
+import nacl.utils
+from nacl.secret import SecretBox
 
 from pymacaroons.field_encryptors.base_field_encryptor import (
     BaseFieldEncryptor
@@ -16,7 +18,8 @@ class SecretBoxEncryptor(BaseFieldEncryptor):
         super(SecretBoxEncryptor, self).__init__(
             signifier=signifier or 'sbe::'
         )
-        self.nonce = nonce
+        self.nonce = (nonce or
+            nacl.utils.random(nacl.bindings.crypto_secretbox_NONCEBYTES))
 
     def encrypt(self, signature, field_data):
         encrypt_key = truncate_or_pad(signature)
