@@ -28,7 +28,7 @@ class ThirdPartyCaveatDelegate(BaseThirdPartyCaveatDelegate):
                                location,
                                key,
                                key_id,
-                               nonce = None,
+                               nonce=None,
                                **kwargs):
         derived_key = truncate_or_pad(
             generate_derived_key(convert_to_bytes(key))
