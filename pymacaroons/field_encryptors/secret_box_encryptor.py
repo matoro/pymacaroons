@@ -18,8 +18,9 @@ class SecretBoxEncryptor(BaseFieldEncryptor):
         super(SecretBoxEncryptor, self).__init__(
             signifier=signifier or 'sbe::'
         )
-        self.nonce = (nonce or
-            nacl.utils.random(nacl.bindings.crypto_secretbox_NONCEBYTES))
+        self.nonce = nonce or nacl.utils.random(
+            nacl.bindings.crypto_secretbox_NONCEBYTES
+        )
 
     def encrypt(self, signature, field_data):
         encrypt_key = truncate_or_pad(signature)
