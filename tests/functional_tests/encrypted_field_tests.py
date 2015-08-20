@@ -1,12 +1,17 @@
 from __future__ import unicode_literals
 
+import nacl.bindings
+
 from nose.tools import *
 
-from libnacl import crypto_box_NONCEBYTES
 from pymacaroons import Macaroon, Verifier
 from pymacaroons.caveat_delegates import EncryptedFirstPartyCaveatDelegate, EncryptedFirstPartyCaveatVerifierDelegate
 from pymacaroons.field_encryptors import SecretBoxEncryptor
 from pymacaroons.utils import truncate_or_pad
+
+
+ZERO_NONCE = truncate_or_pad(
+    b'\0', size=nacl.bindings.crypto_secretbox_NONCEBYTES)
 
 
 class TestEncryptedFieldsMacaroon(object):
@@ -20,10 +25,7 @@ class TestEncryptedFieldsMacaroon(object):
             identifier='we used our secret key',
             key='this is our super secret key; only we should know it'
         )
-        encryptor = SecretBoxEncryptor(nonce=truncate_or_pad(
-            b'\0',
-            size=crypto_box_NONCEBYTES
-        ))
+        encryptor = SecretBoxEncryptor(nonce=ZERO_NONCE)
         m.first_party_caveat_delegate = EncryptedFirstPartyCaveatDelegate(field_encryptor=encryptor)
         m.add_first_party_caveat('test = caveat', encrypted=True)
         assert_equal(

@@ -1,7 +1,8 @@
 from __future__ import unicode_literals
 import binascii
 
-from libnacl.secret import SecretBox
+from nacl.secret import SecretBox
+import nacl.utils
 
 from pymacaroons import Caveat
 from pymacaroons.utils import (
@@ -27,14 +28,16 @@ class ThirdPartyCaveatDelegate(BaseThirdPartyCaveatDelegate):
                                location,
                                key,
                                key_id,
+                               nonce=None,
                                **kwargs):
         derived_key = truncate_or_pad(
             generate_derived_key(convert_to_bytes(key))
         )
         old_key = truncate_or_pad(binascii.unhexlify(macaroon.signature_bytes))
         box = SecretBox(key=old_key)
+        nonce = nonce or nacl.utils.random(box.NONCE_SIZE)
         verification_key_id = box.encrypt(
-            derived_key, nonce=kwargs.get('nonce')
+            derived_key, nonce=nonce
         )
         caveat = Caveat(
             caveat_id=key_id,
