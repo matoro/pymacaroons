@@ -297,13 +297,7 @@ never use the same secret twice',
         )
         assert_true(verified)
 
-    @patch('libnacl.secret.libnacl.utils.rand_nonce')
-    def test_inspect(self, rand_nonce):
-        # use a fixed nonce to ensure the same signature
-        rand_nonce.return_value = truncate_or_pad(
-            b'\0',
-            size=crypto_box_NONCEBYTES
-        )
+    def test_inspect(self):
         m = Macaroon(
             location='http://mybank/',
             identifier='we used our secret key',
@@ -312,7 +306,12 @@ never use the same secret twice',
         m.add_first_party_caveat('test = caveat')
         caveat_key = '4; guaranteed random by a fair toss of the dice'
         identifier = 'this was how we remind auth of key/pred'
-        m.add_third_party_caveat('http://auth.mybank/', caveat_key, identifier)
+        m.add_third_party_caveat(
+            'http://auth.mybank/',
+            caveat_key,
+            identifier,
+            nonce=ZERO_NONCE
+        )
         assert_equal(m.inspect(), (
             'location http://mybank/\n'
             'identifier we used our secret key\n'
