@@ -184,6 +184,22 @@ key", "signature": "197bac7a044af33332865b9266e26d493bdd668a660e44d88ce1a998c2\
         )
         assert_true(verified)
 
+    def test_verify_failing_first_party_general_caveats(self):
+        m = Macaroon(
+            location='http://mybank/',
+            identifier='we used our secret key',
+            key='this is our super secret key; only we should know it'
+        )
+        m.add_first_party_caveat('general caveat')
+
+        v = Verifier()
+        v.satisfy_general(lambda _: False)
+        with assert_raises(MacaroonInvalidSignatureException) as cm:
+            v.verify(
+                m,
+                'this is our super secret key; only we should know it'
+            )
+
     def test_third_party_caveat(self):
         m = Macaroon(
             location='http://mybank/',
